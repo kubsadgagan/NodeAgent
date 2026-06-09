@@ -8,6 +8,11 @@
 //	nodeagent --mode=control issue   --priv K --device D --customer C --ttl T --out L
 //	nodeagent --mode=agent   verify  --pub P  --licence L
 //
+// Phase 2 surface area (TPM sealing — adds binding-to-this-hardware):
+//
+//	nodeagent --mode=agent   seal    --in PLAINTEXT --out SEALED
+//	nodeagent --mode=agent   unseal  --in SEALED    --out PLAINTEXT     (use --out=- for stdout)
+//
 // All other verbs (renew, update-image, restart-container, status, etc.)
 // arrive in later phases. Keep this file additive only — never break
 // the contract above without bumping licence.SchemaVersion in lockstep.
@@ -26,6 +31,7 @@ import (
 	"github.com/google/uuid"
 
 	"nodeagent/internal/licence"
+	"nodeagent/internal/tpm"
 )
 
 // Exit codes are part of the public CLI contract — Phase 9's air-gap
@@ -95,8 +101,12 @@ func runAgent(verb string, args []string) int {
 	switch verb {
 	case "verify":
 		return agentVerify(args)
+	case "seal":
+		return agentSeal(args)
+	case "unseal":
+		return agentUnseal(args)
 	default:
-		fmt.Fprintf(os.Stderr, "unknown agent verb %q (want verify)\n", verb)
+		fmt.Fprintf(os.Stderr, "unknown agent verb %q (want verify, seal, or unseal)\n", verb)
 		return exitUsage
 	}
 }
@@ -148,7 +158,7 @@ func controlIssue(args []string) int {
 	fs := flag.NewFlagSet("control issue", flag.ContinueOnError)
 	privPath := fs.String("priv", "", "path to vendor private key (PEM)")
 	deviceID := fs.String("device", "", "device id (any string for now; TPM-derived in Phase 2)")
-	customerID := fs.String("customer", "", "customer id, e.g. spaider-prod-01")
+	customerID := fs.String("customer", "", "customer id, e.g. acme-prod-01")
 	ttl := fs.Duration("ttl", 0, "licence duration from now, e.g. 30s, 5m, 168h")
 	outPath := fs.String("out", "", "path to write signed licence JSON")
 	if err := fs.Parse(args); err != nil {
@@ -261,5 +271,110 @@ func agentVerify(args []string) int {
 		return exitUsage
 	}
 	fmt.Println(string(out))
+	return exitOK
+}
+
+// agentSeal reads a plaintext file (typically a signed licence), encrypts
+// it against the local TPM 2.0 chip, and writes the sealed blob to --out
+// at mode 0600.
+//
+// The sealed blob is "opaque ciphertext bound to this TPM": copying it
+// to a different machine and trying to unseal returns ErrUnsealFailed.
+// That property is the whole point of Phase 2.
+//
+// Exit codes follow the Phase 1 contract: TPM-level failures map to
+// exitVerifyFailure (2) because, from a scripted-deploy point of view,
+// they are the same shape of failure as a rejected licence — "the
+// device says no."
+func agentSeal(args []string) int {
+	fs := flag.NewFlagSet("agent seal", flag.ContinueOnError)
+	inPath := fs.String("in", "", "path to plaintext input (e.g. a signed licence file)")
+	outPath := fs.String("out", "", "path to write the sealed blob (mode 0600)")
+	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return exitOK
+		}
+		return exitUsage
+	}
+	if *inPath == "" || *outPath == "" {
+		fmt.Fprintln(os.Stderr, "agent seal: --in and --out are required")
+		return exitUsage
+	}
+
+	plaintext, err := os.ReadFile(*inPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "read %s: %v\n", *inPath, err)
+		return exitUsage
+	}
+
+	sealed, err := tpm.Seal(plaintext)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return exitVerifyFailure
+	}
+
+	if err := os.WriteFile(*outPath, sealed, 0600); err != nil {
+		fmt.Fprintf(os.Stderr, "write sealed blob to %s: %v\n", *outPath, err)
+		return exitUsage
+	}
+	fmt.Fprintf(os.Stderr,
+		"sealed %d-byte plaintext into %d-byte blob at %s\n",
+		len(plaintext), len(sealed), *outPath,
+	)
+	return exitOK
+}
+
+// agentUnseal reads a sealed blob produced by agentSeal, asks the TPM
+// to decrypt it, and writes the recovered plaintext to --out.
+//
+// --out accepts "-" as a synonym for stdout (useful for piping straight
+// into `agent verify` once the licence is recovered: e.g.
+//
+//	nodeagent --mode=agent unseal --in sealed.bin --out - | \
+//	  nodeagent --mode=agent verify --pub vendor.pub --licence /dev/stdin
+//
+// — that one-liner is the Phase 9 air-gap demo's smallest credible form.)
+func agentUnseal(args []string) int {
+	fs := flag.NewFlagSet("agent unseal", flag.ContinueOnError)
+	inPath := fs.String("in", "", "path to sealed blob")
+	outPath := fs.String("out", "", `path to write plaintext (use "-" for stdout)`)
+	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return exitOK
+		}
+		return exitUsage
+	}
+	if *inPath == "" || *outPath == "" {
+		fmt.Fprintln(os.Stderr, `agent unseal: --in and --out are required (use --out=- for stdout)`)
+		return exitUsage
+	}
+
+	sealed, err := os.ReadFile(*inPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "read %s: %v\n", *inPath, err)
+		return exitUsage
+	}
+
+	plaintext, err := tpm.Unseal(sealed)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return exitVerifyFailure
+	}
+
+	if *outPath == "-" {
+		if _, err := os.Stdout.Write(plaintext); err != nil {
+			fmt.Fprintf(os.Stderr, "write plaintext to stdout: %v\n", err)
+			return exitUsage
+		}
+		return exitOK
+	}
+	if err := os.WriteFile(*outPath, plaintext, 0600); err != nil {
+		fmt.Fprintf(os.Stderr, "write plaintext to %s: %v\n", *outPath, err)
+		return exitUsage
+	}
+	fmt.Fprintf(os.Stderr,
+		"unsealed %d-byte blob from %s -> %d-byte plaintext at %s\n",
+		len(sealed), *inPath, len(plaintext), *outPath,
+	)
 	return exitOK
 }
