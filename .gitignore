@@ -1,0 +1,12 @@
+# Repo-root .gitignore. Each phase folder has its own .gitignore too
+# (covering Go build artefacts, secrets, etc.); this one covers
+# session-local + OS noise that lives at the top.
+
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+
+# Local Claude session state — never commit
+.claude/

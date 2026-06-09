@@ -1,0 +1,22 @@
+# Build output
+bin/
+
+# Go test/coverage artefacts
+*.test
+*.out
+coverage.txt
+
+# Editor/OS noise
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*~
+
+# Local Claude session state — never commit
+.claude/
+
+# Secrets and sample artefacts — never commit signing material or licences
+*.key
+*.pub
+*.lic
