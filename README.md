@@ -42,4 +42,4 @@ Each phase folder builds independently — `cd phase-1 && make test build`, or `
 
 ## License
 
-Proprietary — not for redistribution.
+Licensed under the [Apache License, Version 2.0](LICENSE). Patent grant included.

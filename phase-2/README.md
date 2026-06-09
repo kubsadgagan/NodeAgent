@@ -53,4 +53,4 @@ Go 1.25, pure Go (no CGO — static cross-compile via `make build-linux`). AES-2
 
 ## License
 
-Proprietary — not for redistribution.
+Licensed under the [Apache License, Version 2.0](../LICENSE).
