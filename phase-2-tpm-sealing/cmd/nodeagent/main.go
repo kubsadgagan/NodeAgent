@@ -14,7 +14,7 @@
 //	   no /dev/tpmrm0 on this host)
 //
 // Phase 2 only exposes these two verbs. The licence signing/verifying
-// verbs live in phase-1/ as a separate standalone project.
+// verbs live in phase-1-licence-module/ as a separate standalone project.
 package main
 
 import (

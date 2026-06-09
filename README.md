@@ -6,7 +6,7 @@ Proof-of-concept demonstrations of `nodeagent`, the cryptographic backbone for l
 
 ## Phases
 
-### [`phase-1/`](phase-1/) — Signed licences
+### [`phase-1-licence-module/`](phase-1-licence-module/) — Signed licences
 
 Ed25519-signed, time-bound licence files. The vendor signs; the device verifies. Tampering, expiry, and wrong-key forgery are all caught locally — no network calls, no central licence server.
 
@@ -15,7 +15,7 @@ Ed25519-signed, time-bound licence files. The vendor signs; the device verifies.
 | `--mode=control` (vendor) | `keygen`, `issue` |
 | `--mode=agent` (device) | `verify` |
 
-### [`phase-2/`](phase-2/) — TPM sealing
+### [`phase-2-tpm-sealing/`](phase-2-tpm-sealing/) — TPM sealing
 
 Bind arbitrary bytes to a specific TPM 2.0 chip via envelope encryption (AES-256-GCM under a TPM-sealed key). Sealed blobs are unsealable only on the same physical TPM — copy a blob to another machine and it is useless. Closes the "copy the licence file off one paid device onto a second machine" attack.
 
@@ -27,18 +27,18 @@ Bind arbitrary bytes to a specific TPM 2.0 chip via envelope encryption (AES-256
 
 ```
 .
-├── phase-1/          standalone Go project — licence module
-│   ├── cmd/nodeagent/        keygen, issue, verify
-│   ├── internal/licence/     signed-licence library
+├── phase-1-licence-module/   standalone Go project — licence module
+│   ├── cmd/nodeagent/            keygen, issue, verify
+│   ├── internal/licence/         signed-licence library
 │   └── docs/phase-1.md
-├── phase-2/          standalone Go project — TPM seal/unseal
-│   ├── cmd/nodeagent/        seal, unseal
-│   ├── internal/tpm/         TPM seal/unseal library + envelope encryption
+├── phase-2-tpm-sealing/      standalone Go project — TPM seal/unseal
+│   ├── cmd/nodeagent/            seal, unseal
+│   ├── internal/tpm/             TPM seal/unseal library + envelope encryption
 │   └── docs/phase-2.md
 └── README.md
 ```
 
-Each phase folder builds independently — `cd phase-1 && make test build`, or `cd phase-2 && make test build`. The folders share no Go code. Later phases conceptually assume the prior phase's deliverable but are demonstrated in isolation here for clarity.
+Each phase folder builds independently — `cd phase-1-licence-module && make test build`, or `cd phase-2-tpm-sealing && make test build`. The folders share no Go code. Later phases conceptually assume the prior phase's deliverable but are demonstrated in isolation here for clarity.
 
 ## License
 
