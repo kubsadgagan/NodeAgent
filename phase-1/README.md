@@ -51,4 +51,4 @@ Go 1.25, pure Go (no CGO). Ed25519 signing via `crypto/ed25519`. JSON envelopes 
 
 ## License
 
-Proprietary — not for redistribution.
+Licensed under the [Apache License, Version 2.0](../LICENSE).
