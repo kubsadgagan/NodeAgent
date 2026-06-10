@@ -79,42 +79,45 @@ hand-rolled sealed-object template — is verified end-to-end.
 ### 2.1 The big picture (sealing)
 
 ```
-                Phase 1 licence file (signed JSON)
-                            |
-                            v
-              +----------------------------+
-              | nodeagent --mode=agent seal |
-              +----------------------------+
-                            |
-        +-------------------+----------------------+
-        |                                          |
-        v                                          v
-   random AES-256 key                         AES-256-GCM
-   (32 bytes, fresh                            encrypts the
-   per seal call)                              licence
-        |                                          |
-        v                                          v
-  +-----------+                              ciphertext + tag
-  |    TPM    |                              + 12-byte nonce
-  | seals key |
-  +-----------+
-        |
-        v
-  sealed key blob
-  (TPM-protected,
-   ~150 bytes)
-        |
-        +--------+              +--------+
-                 |              |
-                 v              v
-            +-----------------------------+
-            | length-prefixed concat      |
-            |  (sealed key) || (nonce|ct) |
-            +-----------------------------+
-                            |
-                            v
+            Phase 1 licence file (signed JSON, ~400 bytes)
+                                  |
+                                  v
+                  +-----------------------------+
+                  | nodeagent --mode=agent seal |
+                  +-----------------------------+
+                                  |
+                                  v
+                  +-----------------------------+
+                  | generate fresh AES-256 key K|
+                  | (32 bytes, crypto/rand)     |
+                  +-----------------------------+
+                                  |
+                +-----------------+-----------------+
+                | K                                 | K
+                v                                   v
+       +-----------------+              +------------------------+
+       |  TPM seals K    |              |  AES-256-GCM encrypts  |
+       |  under SRK,     |              |  licence with K +      |
+       |  no PCR policy  |              |  random 12-byte nonce  |
+       +-----------------+              +------------------------+
+                |                                   |
+                v                                   v
+         sealed K blob                     nonce ‖ ciphertext+tag
+         (TPM-bound, ~150 B)               (~420 B)
+                |                                   |
+                +-----------------+-----------------+
+                                  |
+                                  v
+                  +------------------------------+
+                  | length-prefixed two-segment  |
+                  | concat: encodeBlob(sealedK,  |
+                  |                    nonceCT)  |
+                  +------------------------------+
+                                  |
+                                  v
                   /var/lib/nodeagent/sealed.bin
-                  (mode 0600, on the LUKS-encrypted root)
+                  (~640 bytes total, mode 0600,
+                   on the LUKS-encrypted root)
 ```
 
 ### 2.2 The big picture (unsealing)
