@@ -4,6 +4,22 @@
 
 Proof-of-concept demonstrations of `nodeagent`, the cryptographic backbone for licensed software appliances. Each subfolder is a **self-contained, independently usable artefact** demonstrating one slice of the design in isolation.
 
+## Status
+
+| # | Phase | Folder | Status |
+|---|---|---|---|
+| 1 | Signed licences (Ed25519) | [`phase-1-licence-module/`](phase-1-licence-module/) | ✅ Delivered |
+| 2 | TPM sealing (envelope encryption) | [`phase-2-tpm-sealing/`](phase-2-tpm-sealing/) | ✅ Delivered |
+| 3 | TPM-backed LUKS auto-unlock | [`phase-3-luks-tpm-unlock/`](phase-3-luks-tpm-unlock/) | ✅ Delivered |
+| 4 | Encrypted Podman container + TPM-released image key | — | ⏳ Planned |
+| 5 | Embedded WireGuard tunnel inside nodeagent | — | ⏳ Planned |
+| 6 | Signed command protocol over the tunnel | — | ⏳ Planned |
+| 7 | Vendor-side control plane (`--mode=control`) | — | ⏳ Planned |
+| 8 | NixOS zero-login lockdown | — | ⏳ Planned |
+| 9 | End-to-end air-gap + expiry demo | — | ⏳ Planned |
+
+**The arc, in one line:** Phase 1 is the maths foundation. Phases 2–4 bind that maths to *this physical machine*. Phases 5–7 add the only authorised remote channel. Phase 8 removes every other way in. Phase 9 proves the whole stack on video.
+
 ## Phases
 
 ### [`phase-1-licence-module/`](phase-1-licence-module/) — Signed licences
