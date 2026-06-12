@@ -2,7 +2,7 @@
 
 > Hardened compute node. NixOS, LUKS, TPM sealing, WireGuard-only surface. No login. No trust assumptions.
 
-Proof-of-concept demonstrations of `nodeagent`, the cryptographic backbone for licensed software appliances. Each subfolder is a **self-contained, independently buildable Go project** demonstrating one slice of the design in isolation.
+Proof-of-concept demonstrations of `nodeagent`, the cryptographic backbone for licensed software appliances. Each subfolder is a **self-contained, independently usable artefact** demonstrating one slice of the design in isolation.
 
 ## Phases
 
@@ -23,6 +23,15 @@ Bind arbitrary bytes to a specific TPM 2.0 chip via envelope encryption (AES-256
 |---|---|
 | `--mode=agent` (device) | `seal`, `unseal` |
 
+### [`phase-3-luks-tpm-unlock/`](phase-3-luks-tpm-unlock/) — TPM-backed LUKS auto-unlock
+
+Wire the TPM into the LUKS unlock path so the encrypted root volume opens silently at boot when the boot state matches the policy we authorised. No passphrase prompt for normal boots; the passphrase remains as a recovery slot. Pure NixOS configuration + one `systemd-cryptenroll` invocation — no Go code added.
+
+| Artefact | What it does |
+|---|---|
+| `nixos/configuration.nix` | Three-line addition to the bootloader/LUKS block |
+| `scripts/reenroll-tpm-luks.sh` | Operator helper for the wipe-and-re-enroll cycle after firmware/secure-boot changes |
+
 ## Layout
 
 ```
@@ -35,10 +44,17 @@ Bind arbitrary bytes to a specific TPM 2.0 chip via envelope encryption (AES-256
 │   ├── cmd/nodeagent/            seal, unseal
 │   ├── internal/tpm/             TPM seal/unseal library + envelope encryption
 │   └── docs/phase-2.md
+├── phase-3-luks-tpm-unlock/  NixOS configuration — TPM-backed LUKS auto-unlock
+│   ├── nixos/configuration.nix   deployable example NixOS config
+│   ├── scripts/                  operator helpers
+│   └── docs/phase-3.md
+├── Build_Story.md            plain-English walkthrough of all phases
 └── README.md
 ```
 
-Each phase folder builds independently — `cd phase-1-licence-module && make test build`, or `cd phase-2-tpm-sealing && make test build`. The folders share no Go code. Later phases conceptually assume the prior phase's deliverable but are demonstrated in isolation here for clarity.
+The Go-based phase folders (`phase-1-licence-module/`, `phase-2-tpm-sealing/`) each build independently — `cd phase-1-licence-module && make test build` or `cd phase-2-tpm-sealing && make test build`. The folders share no Go code. The NixOS-based phase (`phase-3-luks-tpm-unlock/`) is consumed as a configuration recipe; see its own README for the deployment recipe.
+
+Later phases conceptually assume the prior phase's deliverable but are demonstrated in isolation here for clarity.
 
 ## License
 

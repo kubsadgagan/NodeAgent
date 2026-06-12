@@ -1,0 +1,14 @@
+# Editor/OS noise
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*~
+
+# Local Claude session state
+.claude/
+
+# Secrets — never commit
+*.key
+*.pub
+*.lic
